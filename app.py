@@ -1,7 +1,7 @@
 from flask import Flask, request, jsonify
 from models.user import User
 from database import db
-from flask_login import LoginManager, login_user, logout_user, login_required
+from flask_login import LoginManager, login_user, logout_user, login_required, current_user
 
 app = Flask(__name__)
 app.config["SECRET_KEY"] = "your_secret_key"
@@ -54,6 +54,46 @@ def create_user():
     return jsonify({"message": "User successfully created"})
 
   return jsonify({"message": "Invalid credentials"}), 400
+
+@app.route("/user/<int:id_user>", methods=["GET"])
+@login_required
+def read_user(id_user):
+  user = User.query.get(id_user)
+
+  if user:
+    return {"username": user.username}
+
+  return jsonify({"message": "User not found"}), 404
+
+@app.route("/user/<int:id_user>", methods=["PUT"])
+@login_required
+def update_user(id_user):
+  data = request.json
+  new_password = data.get("password")
+  user = User.query.get(id_user)
+
+  if user and new_password:
+    user.password = new_password
+    db.session.commit()
+    return jsonify({"message": f"User {id_user} successfully updated"})
+
+  return jsonify({"message": "User not found"}), 404
+
+@app.route("/user/<int:id_user>", methods=["DELETE"])
+@login_required
+def delete_user(id_user):
+  user = User.query.get(id_user)
+
+  if current_user.id == id_user:
+    return jsonify({"message": "You are not allowed to delete yourself"}), 403
+
+  if user:
+    db.session.delete(user)
+    db.session.commit()
+    return jsonify({"message": f"User {id_user} successfully deleted"})
+
+  return jsonify({"message": "User not found"}), 404
+
 
 if __name__ == "__main__":
   app.run(debug=True)
